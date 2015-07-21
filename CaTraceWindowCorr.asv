@@ -1,0 +1,60 @@
+
+clear
+load CaData
+fps=30;
+numTrials=length(inputTrace);
+steps=5;
+
+winsize=3599;
+rValues=NaN(numTrials,round((7900-winsize)/(winsize/steps)));
+nc=5;
+nr=ceil(numTrials/nc);
+
+
+
+for i=1:numTrials
+    
+    goodFrames=1:min([length(inputTrace{i}) length(outputTrace{i}) ]);    
+    thisInputTrace=inputTrace{i}(goodFrames);
+    thisOutputTrace=outputTrace{i}(goodFrames);
+    thisLabel=trialLabel{i};
+    
+    if thisLabel(end-1:end)=='T2' | thisLabel(end-1:end)=='T1'
+    
+    cc=1;
+    for W=1:winsize/steps:length(thisOutputTrace)-winsize
+        
+        winin=thisInputTrace(W:W+winsize);
+        winout=thisOutputTrace(W:W+winsize);
+        
+        winInputTrace_cent=winin-nanmean(winin);
+        winOutputTrace_cent=winout-nanmean(winout);
+        
+        winInputTrace_norm=winInputTrace_cent/rms(winInputTrace_cent);
+        winOutputTrace_norm=winOutputTrace_cent/rms(winOutputTrace_cent);
+        
+        %correlate current window
+        rValues(i,cc)=nancorr(winInputTrace_norm,winOutputTrace_norm);
+        cc=cc+1;
+        
+    end
+    
+    end
+    
+end % end exp loop
+
+%%
+
+figure('Position',[10 200 1000 400]);
+subplot(1,2,1)
+plot(rValues')
+hold on
+plot(nanmean(rValues), 'linewidth',2,'color','k')
+title(['window size=' num2str(winsize)])
+set(gca,'XTickLabel',1:winsize/steps:length(thisOutputTrace)-winsize);
+
+subplot(1,2,2)
+imagesc(rValues)
+colorbar
+caxis([-1.1 1])
+

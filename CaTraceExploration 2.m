@@ -1,6 +1,6 @@
 %Julia code
 
-change 33
+change 44
 % a better way to structure your data: 
 % Trial().CO2
 % Trial().Ratio

@@ -1,0 +1,64 @@
+
+cc=1;
+load CaData
+
+for i=1:length(XYTrace)
+    
+    goodFrames=1:min([length(inputTrace{i}) length(outputTrace{i}) ]);
+    thisInputTrace=medfilt1(inputTrace{i}(goodFrames));
+    thisOutputTrace=medfilt1(outputTrace{i}(goodFrames));
+    thisXY=NaN(2,7990);
+    thisXY(:,1:length(XYTrace{i}))=XYTrace{i};
+    thisXY=(thisXY(:,goodFrames));
+    thisLabel=trialLabel{i};
+    if(i<length(XYTrace))
+    nextLabel=trialLabel{i+1};
+    end
+    
+    %prune T1 data first 50s
+    if strcmp(thisLabel(end-1:end),'T1')==1
+        thisInputTrace=thisInputTrace (1600:end);
+        thisOutputTrace=thisOutputTrace (1600:end);
+        
+    end
+    
+    %concatenate T1&T2
+    if strcmp(thisLabel(end-1:end),'T2')==1
+        
+        thisOutputTrace=vertcat(prevOut,thisOutputTrace(1:end-1200));
+        thisInputTrace=vertcat(prevIn',thisInputTrace(1:end-1200)');
+        thisXY=horzcat(prevXY,thisXY(:,1:end-1200));
+        catflag=1;
+        
+    end
+    
+    if nextLabel(end-1:end)=='T2'
+        
+        prevIn=thisInputTrace;
+        prevOut=thisOutputTrace;
+        prevXY=thisXY;
+        T2flag=1;
+        
+        continue
+        
+    elseif  nextLabel(end-1:end)=='T1'
+        T2flag=0;
+    end
+    
+    inputTraceN{cc}=thisInputTrace;
+    outputTraceN{cc}=thisOutputTrace;
+    XYTraceN{cc}=thisXY;
+    trialLabelN{cc}=thisLabel;
+    cc=cc+1;
+    
+end
+
+inputTrace=inputTraceN;
+outputTrace=outputTraceN;
+XYTrace=XYTraceN;
+trialLabel=trialLabelN;
+
+
+save 'CaDataConcat' 'inputTrace' 'outputTrace' 'trialLabel' 'XYTrace'
+
+
