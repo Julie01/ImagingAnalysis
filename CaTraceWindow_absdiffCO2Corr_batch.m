@@ -6,7 +6,7 @@ warning off
 
 for F=1:4
     
-    clearvars -except F CC outputTrace inputTrace trialLabel XYTrace
+    clearvars -except F CC mf outputTrace inputTrace trialLabel XYTrace
     %parameters
     fps=30;
     numTrials=length(inputTrace);
@@ -20,7 +20,8 @@ for F=1:4
     mean_CO2=NaN(numTrials,round((15000-winsize)/ceil(winsize/steps))-1);
     mean_diffCO2=NaN(numTrials,round((15000-winsize)/ceil(winsize/steps))-1);
     mean_globalbearing=rValues;
-    
+    mean_localbearing=rValues;
+     
     nc=5;
     nr=ceil(numTrials/nc);
     
@@ -65,8 +66,8 @@ for F=1:4
         speed(NanIdx)=NaN;
         localbearing(NanIdx)=NaN;
         globalbearing(NanIdx)=NaN;
-
-    %%%%%%%%%%
+        
+        %%%%%%%%%%
         if thisLabel(end-1:end)=='T2' | thisLabel(end-1:end)=='T1'
             %    if thisLabel(end-1:end)=='T1'
             
@@ -83,6 +84,7 @@ for F=1:4
                 winOutputTrace_norm=winOutputTrace_cent/rms(winOutputTrace_cent);
                 
                 win_globalbearing= globalBearingUps(W:W+winsize);
+                 win_localbearing= localbearing(W:W+winsize);
                 
                 %correlate current window
                 rValues(i,cc)=nancorr(winInputTrace_norm,winOutputTrace_norm);
@@ -91,12 +93,12 @@ for F=1:4
                 
                 mean_CO2(i,cc)=nanmean(winin);
                 
-                diffCO2=diff(winin);
+                diffCO2=abs(diff(winin));
                 diffCO2(diffCO2>0.05)=NaN;
                 mean_diffCO2(i,cc)=nanmean(diffCO2);
-               
-                mv(cc)=max(abs(diffCO2));
+                
                 mean_globalbearing(i,cc)=nanmean(win_globalbearing);
+                mean_localbearing(i,cc)=nanmean(win_localbearing);
                 
                 xt(cc)=W;
                 cc=cc+1;
@@ -109,13 +111,15 @@ for F=1:4
     
     %%
     
-    
+    figure(mf)
     subtightplot(2,2,CC,[0.07,0.03])
     plot(nanmean(mean_CO2),'r')
     hold on
     plot(nanmean(mean_speed),'g')
     plot(nanmean(mean_diffCO2)*1000,'m')
     plot(nanmean( mean_globalbearing)/100,'b')
+    plot(nanmean( mean_localbearing)/100,'color',[0.1 0.1 0.3])
+    
     plot(1:length(mean_speed),zeros(1,length(mean_speed)),'--','color', [0.5 0.5 0.5])
     plot(nanmean(rValues), 'linewidth',2,'color','k')
     title(['window size=' num2str(winsize) '   max r=' num2str(max(nanmean(round(rValues*100))/100)) ])
@@ -126,9 +130,10 @@ for F=1:4
     CO2corr=nancorr(nanmean(rValues),nanmean(mean_CO2));
     diffCO2corr=nancorr(nanmean(rValues),nanmean(mean_diffCO2));
     bearingcorr=nancorr(nanmean(rValues),nanmean(mean_globalbearing));
+    loc_bearingcorr=nancorr(nanmean(rValues),nanmean(mean_localbearing));
     
     legend(['mean CO2 r= ' num2str(speedcorr)],['mean speed r= ' num2str(CO2corr)],...
-        ['mean abs diffCO2 r= ' num2str(diffCO2corr)],['global bearing r= ' num2str(speedcorr)])
+        ['mean abs diffCO2 r= ' num2str(diffCO2corr)],['global bearing r= ' num2str(bearingcorr)],['local bearing r= ' num2str(loc_bearingcorr)])
     
     
     CC=CC+1;
