@@ -1,0 +1,88 @@
+%correlates normalized ratio to CO2 input with or without upgradient
+%reversals
+
+clearvars -except ImagingData
+
+CC=0;
+
+home=cd;
+prerev=NaN(1,1200);
+cc=1;
+% figure
+
+for F=1:length(ImagingData)
+    
+    %ratio:
+    ratio=ImagingData{F}.ratioFo;
+    ni=find(isnan(ratio));
+    ratio_cent=ratio-nanmedian(ratio);
+    ratio_norm=ratio_cent/rms(ratio_cent);
+    ratio_norm=medfilt1(ratio_norm,30);
+    ratio_norm=smoothn(ratio_norm,30);
+    ratio_norm(ni)=NaN;
+    %NaN outliers:
+    ratio(ratio<-3 | ratio>3)=NaN;
+    
+    %reversals:
+    RevON=ImagingData{F}.RevFrames30hz(1:2:end);
+    RevEND=ImagingData{F}.RevFrames30hz(2:2:end);
+    Revs=zeros(length(ratio),1);
+    for i=1:length(RevEND)
+        Revs(RevON(i):RevEND(i)+1,1)=1;
+    end
+    Revs=Revs(1:length(ratio));
+    
+    %CO2:
+    CO2=ImagingData{F}.CO2;
+    CO2(ni)=NaN;
+    try
+        ratio_norm=ratio_norm(1:length(CO2));
+        ratio=ratio(1:length(CO2));
+        Revs=Revs(1:length(CO2));
+    catch
+        CO2=CO2(1:length(ratio));
+    end
+    
+    rawcorr(F)=nancorr(ratio_norm,CO2);
+    
+    % bearing:
+    XY=ImagingData{F}.XY;
+    [ bearing heading]=getbearing_freelyMoving_global(XY(:,1),XY(:,2),1,9);
+    bearing=[bearing;  NaN(length(ratio)-length(bearing),1)];
+    bearing=bearing(1:length(ratio));
+    
+    %NaN reversal episodes when upgradient & detrend CO2:
+    
+    ri=find(Revs==1);
+    ug=find(bearing(ri)>100);
+    riU=ri(ug);
+    ratio_norm(riU)=NaN;
+    CO2(riU)=NaN;
+    
+    ni=find(isnan(CO2));
+    ratio_norm(ni)=[];
+    CO2(ni)=[];
+    if rawcorr(F)<0.1     
+    CO2=detrend(CO2);
+    end
+    
+    
+    FWcorr(F)=nancorr(ratio_norm,CO2);
+    
+    %plot wo ug reversals
+    cla
+    plot(ratio_norm )
+    hold on
+    plot((CO2-nanmean(CO2))*5,'m')    
+    title([cc rawcorr(F) FWcorr(F)])
+    cc=cc+1;
+    
+    
+end
+
+%% plot
+% rawcorr(rawcorr<-0.05)=NaN;
+% FWcorr(FWcorr<-0.05)=NaN;
+corrV=[rawcorr' FWcorr'];
+boxplot(corrV,'labels',{'all','wo up rev'})
+title([nanmean(rawcorr) nanmean(FWcorr)]);

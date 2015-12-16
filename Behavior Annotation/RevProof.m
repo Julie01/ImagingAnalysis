@@ -1,9 +1,13 @@
-% calculates speed and angular speed from stagepositon:
-clearvars -except RevFrames
+
+% plots stageposition and annotated reversals corrected for delay:
+
+function [RevFrames30hz, recordname]=RevProof(RevFrames,delay)
+
+
 global fn click handles
 
 start=10;
-F=2;
+F=1;
 
 
 click=0;
@@ -41,17 +45,23 @@ mf=figure('Position', [screen(3)/3,screen(4)/3,screen(3)/1.6,screen(4)/1.7]);
 
 plot(Xa,Ya,'k');
 hold on
-RevFrames30hz=(RevFrames-1)*3;
+RevFrames30hz=(RevFrames-delay)*3;
 
 RevON=RevFrames30hz(1:2:end);
 RevEND=RevFrames30hz(2:2:end);
 
-scatter(Xa(RevON(1:end)),Ya(RevON(1:end)),'rp','filled');
+scatter(Xa(RevON(1)),Ya(RevON(1)),'bp','filled');
+scatter(Xa(RevON(2:end)),Ya(RevON(2:end)),'rp','filled');
 scatter(Xa(RevON(end)),Ya(RevON(end)),'mh','filled');
 try
     scatter(Xa(RevEND(1:end)),Ya(RevEND(1:end)),'gp','filled')
 catch
     scatter(Xa(RevEND(1:end-1)),Ya(RevEND(1:end-1)),'gp','filled')
+end
+
+
+
+
 end
 
 

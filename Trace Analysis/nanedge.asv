@@ -1,0 +1,11 @@
+% code finds staring & end points of stretches of nan in a vector
+
+function [NaNStart, NaNEnd]=nanedge(data)
+
+%(1) create avector with 1=NaN
+nanvector=zeros(1,length(data));
+nanvector(isnan(data))=1;
+%(2)find onsets of NaN episodes:
+NaN_start= find(diff(nanvector)==1);
+NaN_start= find(diff(nanvector)==1);
+end

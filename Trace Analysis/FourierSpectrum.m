@@ -1,0 +1,87 @@
+% fourier transform of CO2 or ratio signal
+
+Fs=30;
+T = 1/Fs;               % Sampling period
+L=length(S1);
+t = (0:L-1)*T;          % Time vector
+
+% sensory input:
+S1wp = S1.* hanning(L);   % windowing
+S1wp=[S1wp ;zeros(10*L,1)];  % zero padding
+
+YS = fft(S1wp);            % Fourier transfom
+LY=length(YS);
+YS=YS(1:LY/2);
+
+% figure
+% subtightplot(2,1,1);
+% plot(abs(Y(1:LY/2))/LY*Fs)  % plot spectrum
+% xlabel('bins')
+Fr=((1:(LY/2))*(Fs/LY));
+% subtightplot(2,1,2);
+h(1)=plot(Fr,abs(YS)*(Fs/LY));
+xlabel('frequency (hz)')
+
+% ratio output:
+S1wp = S2.* hanning(L);   % windowing
+S1wp=[S1wp ;zeros(10*L,1)];  % zero padding
+
+YR = fft(S1wp);            % Fourier transfom
+LY=length(YR);
+YR=YR(1:LY/2);
+
+% subtightplot(2,1,1);
+% hold on
+% plot(abs(Y(1:LY/2))/LY*Fs,'g')  % plot spectrum
+% xlabel('bins')
+% subtightplot(2,1,2);
+hold on
+
+h(2)=plot(Fr,abs(YR)*(Fs/LY),'g');
+
+%% %%%find frequency peaks sensory:
+mS=max(abs(YS)*(Fs/LY));
+delta=mS/6;
+[maxS mins]=peakdet(abs(YS)*(Fs/LY),delta);
+[maxSorted idx]=sort(maxS(:,2),'descend');    % find 3 highest peaks
+try
+maxSorted_S= maxSorted(1:3);
+catch
+    maxSorted_S= maxSorted;
+end
+    
+maxSorted_S(:,2)=maxS(idx(1:length(maxSorted_S)),1).*(Fs/LY);
+scatter(maxSorted_S(:,2),maxSorted_S(:,1));
+%%%% find frequency peaks ratio:
+mR=max(abs(YR)*(Fs/LY));
+delta=mR/6;
+[maxR mins]=peakdet(abs(YR)*(Fs/LY),delta);
+[maxSorted idx]=sort(maxR(:,2),'descend');    % find 3 highest peaks
+maxR(:,1)=maxR(:,1).*(Fs/LY);
+% scatter(maxSorted_R(:,2),maxSorted_R(:,1));
+scatter(maxR(:,1),maxR(:,2),'g');
+[cf cfiS cfiR]=intersect(round(maxSorted_S(:,2)*20)/20,round(maxR(:,1)*20)/20);
+scatter(cf,maxSorted_S(cfiS,1),'hm');
+
+% phases:
+binIdxS=maxSorted_S(cfiS,2)./(Fs/LY);
+binIdxR=maxR(cfiR,1)./(Fs/LY);
+phS=(angle(YS(binIdxS)));
+phR=(angle(YR(binIdxR)));
+%phase dufference %pi
+pDif=abs(phS-phR)/pi;
+for i=1:length(pDif)
+if abs(phS(i)-phR(i))>pi
+pDif(i)=abs((phS(i)+(pi-abs(phR(i))))/pi);
+end
+end
+
+xlabel('frequency (hz)')
+try
+xlim([0 Fr(1200)]);
+end
+
+legend(h,'CO2','ratio');
+
+
+

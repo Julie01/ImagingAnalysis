@@ -2,8 +2,6 @@
 
 clear
 cc=1;
-winsize=300;
-try
 prune=1;
 dirList=dir('*BAGxAFD.mat');
 m=1;
@@ -15,13 +13,18 @@ for i=1:length(dirList)
     for j=1:length(thisFieldNames);
          for k=1:length( fileData{i}.Data.(thisFieldNames{j}))
              
-             if isfield(fileData{i}.Data.(thisFieldNames{j})(k), 'CO2')==1
+             if isfield(fileData{i}.Data.(thisFieldNames{j})(k), 'CO2')==1 
+                if ~isempty(fileData{i}.Data.(thisFieldNames{j})(k).CO2)
              inputTrace{m}=fileData{i}.Data.(thisFieldNames{j})(k).CO2(prune:end);
-             outputTrace{m}=fileData{i}.Data.(thisFieldNames{j})(k).ratio(prune:end);            
+             outputTrace{m}=fileData{i}.Data.(thisFieldNames{j})(k).ratio(prune:end);   
+             XYTrace{m}=fileData{i}.Data.(thisFieldNames{j})(k).XY(prune:end,:)';            
              
              trialLabel{m}=[ dirList(i).name(1:8) '-' thisFieldNames{j} '-T' num2str(k)  ];
+                 
+                  m=m+1;
+                 end
              end
-             m=m+1;
+            
          end
         
     end
@@ -31,8 +34,7 @@ end
 
 %%%%%%%%%
 
-
-
+%%
 figure('Position',[0 0 1200 800]);
 
 fps=30;
@@ -41,10 +43,12 @@ nc=5;
 nr=ceil(numTrials/nc);
 
 
+for i=gi
 
-for i=1:numTrials
+% for i=1:numTrials
     
-    subtightplot(nr,nc,i);
+    %subtightplot(nr,nc,i);
+     subtightplot(4,4,i);
 
     goodFrames=1:min([length(inputTrace{i}) length(outputTrace{i}) ]);
 

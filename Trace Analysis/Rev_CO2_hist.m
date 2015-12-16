@@ -1,0 +1,76 @@
+%stacks the ratios pre and post all reversals:
+clearvars -except ImagingData
+
+CC=0;
+
+home=cd;
+prerev=NaN(1,1200);
+cc=1;
+folders=dir('*W*');
+
+for F=1:length(ImagingData)
+    
+    CO2=ImagingData{F}.CO2;
+    SensNorm=CO2-nanmedian(CO2);
+    CO2=smoothn(SensNorm./nanstd(SensNorm),60);
+    
+    
+    %reversals:
+    RevON=ImagingData{F}.RevFrames30hz(1:2:end);
+    RevEND=ImagingData{F}.RevFrames30hz(2:2:end);
+    
+    if F==14
+        p=1;
+    end
+    
+    for rev=1:length(RevON)
+        
+        if RevON(rev)>900 & RevON(rev)+300<length(CO2)
+            
+            prerev(cc,:)=CO2(RevON(rev)-899:RevON(rev)+300);
+            cc=cc+1;
+            % if reversal is too close to start of trace:
+        elseif RevON(rev)<900
+            
+            prerev(cc,:)=NaN(1,1200);
+            prerev(cc,RevON(rev)+1:1200)=CO2(1:1200-RevON(rev));
+            cc=cc+1;
+            %or to end
+        elseif RevON(rev)+300>length(CO2)
+            prerev(cc,:)=NaN(1,1200);
+            missing=length(CO2)-(RevON(rev)+300);
+            prerev(cc,1:1200+missing)=CO2(RevON(rev)-899:end);
+            cc=cc+1;
+        end
+        
+    end % end reversal loop
+    
+    
+end
+
+% %% dC/dT:
+prerev_d=NaN(size(prerev)-1);
+for i=1:cc-1
+prerev_d(i,:)=diff(prerev(i,:));
+end
+
+ prerev_n=prerev_d;
+
+%% plot:
+figure
+sem=NaN;
+for i=1:length(prerev_n)
+    sem(i)=nanstd(prerev_n(:,i))/sqrt(numel(find(~isnan(prerev_n(:,i)))));
+    nn(i)=numel(find(~isnan(prerev_n(:,i))));
+end
+h1=shadedErrorBar2([],nanmedian(prerev_n),sem,'b',0);
+hold on
+plot([900 900],[min(nanmedian(prerev_n)-0.02) max(nanmedian(prerev_n)+0.02)],'r')
+set(gca,'XTick',[1:100:size(prerev_n,2)])
+set(gca,'XTicklabel',round(0:3.33:50))
+
+xlabel('s')
+ylabel('CO2')
+
+
+

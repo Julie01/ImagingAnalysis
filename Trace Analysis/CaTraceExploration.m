@@ -1,6 +1,7 @@
 %Julia code
 
 clear
+rValues=NaN;
 cc=1;
 prune=1;
 dirList=dir('*BAGxAFD.mat');
@@ -34,7 +35,7 @@ end
 
 %%%%%%%%%
 
-
+%%
 figure('Position',[0 0 1200 800]);
 
 fps=30;
@@ -64,7 +65,9 @@ for i=1:numTrials
     plot(tv,thisInputTrace_norm,'r');
     hold on;
     plot(tv,thisOutputTrace_norm,'b');
-    h=intitle(trialLabel{i});
+    rValues(i)=round(nancorr(thisInputTrace_norm,thisOutputTrace_norm)*100)/100;
+    intitle(['r=' num2str(rValues(i)) ' .. ' trialLabel{i}]);
+  
 
 
 end
