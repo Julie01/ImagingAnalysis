@@ -1,0 +1,278 @@
+%stacks the ratios pre and post all reversals:
+% load ImagingDataRevCorr
+clearvars -except ImagingData idx AD nearest
+type='all'
+%close
+%ImagingData=AD;
+f1=figure;
+CC=1;
+PauseMatrix=NaN(length(ImagingData),14560);
+SpeedMatrix=NaN(length(ImagingData),14560);
+RMatrix=NaN(length(ImagingData),14560);
+RevMatrix=NaN(length(ImagingData),14560);
+CumSumN=NaN(length(ImagingData),14560/2);
+CumSumS=NaN(length(ImagingData),14560/2);
+nfc1=NaN(length(ImagingData),14560/2);
+nfc2=NaN(length(ImagingData),14560/2);
+P1=NaN;
+P2=NaN;
+
+p_cutoff=0.025;
+disp(p_cutoff)
+
+%for F=nearest(:,2)'
+% for F=idx
+
+for F=1:length(ImagingData)
+    
+    %ratio:
+    %(1)
+    try
+    cherry1=abs(medfilt1(ImagingData{F}.cherry1(1:7280),5));
+    gcamp1=abs(medfilt1(ImagingData{F}.gcamp1(1:7280),5));
+    catch
+        CC=CC+1;
+        continue
+    end
+   
+    %out of focus correction
+    % find very rapid changes in size of cherry area and emove this data:
+    areaR1=ImagingData{F}.AreaR1_1;
+    areaJumps1=find(diff(medfilt1(areaR1))>80 | diff(medfilt1(areaR1))<-80);
+    areaJumps1=vertcat(areaJumps1, find(areaR1>2*nanmedian(areaR1) | areaR1<0.25*nanmedian(areaR1)));
+    ni= find(cherry1<nanmedian(cherry1)-(2.5*nanstd(cherry1)));
+    ni=[ni ;areaJumps1];
+    cherry1(ni)=NaN;
+    gcamp1(ni)=NaN;
+    mc(F)=nanmean(cherry1);
+    mg(F)=nanmean(gcamp1);
+    eq_ratio1=(gcamp1/nanmedian(gcamp1))./(cherry1/nanmedian(cherry1));
+    %eq_ratio1=gcamp1./cherry1;
+    %cumsum:
+    nf=ones(length(eq_ratio1),1);
+    ni=(isnan(eq_ratio1));
+    nf(ni)=NaN;
+    nfc=nancumsum(nf);
+    CumSumN(CC,:)=(nancumsum(eq_ratio1))./nfc;
+    
+    %(2)
+    dn=NaN(abs(ImagingData{F}.delay_stk2),1);
+    cherry2=medfilt1(ImagingData{F}.cherry2(1:7280),5);
+    gcamp2=medfilt1(ImagingData{F}.gcamp2(1:7280),5);
+    cherry2=[dn;cherry2(1:7280-length(dn))];
+    gcamp2=[dn;gcamp2(1:7280-length(dn))];
+    %out of focus correction
+    % find very rapid changes in size of cherry area and emove this data:
+    areaR1=ImagingData{F}.AreaR1_2;
+    areaJumps1=find(diff(medfilt1(areaR1))>80 | diff(medfilt1(areaR1))<-80);
+    areaJumps1=vertcat(areaJumps1, find(areaR1>2*nanmedian(areaR1) | areaR1<0.25*nanmedian(areaR1)));
+    ni= find(cherry2<nanmedian(cherry2)-(2.5*nanstd(cherry2)));
+    ni=[ni; areaJumps1];
+    cherry2(ni)=NaN;
+    gcamp2(ni)=NaN;
+    
+    eq_ratio2=(gcamp2/nanmedian(gcamp1))./(cherry2/nanmedian(cherry1));
+    %eq_ratio2=(gcamp2./cherry2)*20;
+    RMatrix(CC,:)=[eq_ratio1 ; eq_ratio2];
+    
+    %cumsum:
+    nf=ones(length(eq_ratio2),1);
+    ni=(isnan(eq_ratio2));
+    nf(ni)=NaN;
+    nfc1=nancumsum(nf);
+    CumSumS(CC,:)=(nancumsum(eq_ratio2))./nfc1;
+    %peaks: primary and global
+    sr=eq_ratio2(1150:1350);
+    if length(find(~isnan(sr)))>3
+    [P1(CC)]= nanmedian(sr(sr>(nanmean(sr)+nanstd(sr))));
+    hp=eq_ratio2(eq_ratio2>(nanmedian(eq_ratio2)+nanstd(eq_ratio2)*1.00));
+    [P2(CC)]= nanmedian(hp);
+    %[P2(CC)]= max(eq_ratio2);
+    end
+    %select for response type:
+    %     if P1(F)>1.6
+    %         continue
+    %     end
+    
+    % speed:
+    if ~isempty (ImagingData{F}.XY_1)
+        thisXY=[ImagingData{F}.XY_1 ;ImagingData{F}.XY_2];
+        Xf=medfilt1(thisXY(1:10:end,1),5);
+        Yf=medfilt1(thisXY(1:10:end,2),5);
+        speed10=NaN(1,length(Xf));
+        for ii=1:length(Xf)-1
+            speed10(ii)=abs(sqrt(((Xf(ii)-Xf(ii+1)).^2)+((Yf(ii)-Yf(ii+1)).^2)))*3; % traveled path during "distance" intervall
+        end
+        %interpolate
+        warning off
+        Xup=interp1(1:length(speed10),speed10,1:1/10.0065:length(speed10));
+        speed=Xup./100; %is in pix/sec (pix-->mm=47/64000 = 0.00073)
+        %NaN episodes of high stage search & when the neuron is lost
+        bi=find(speed>3);
+        bi2=find(isnan([eq_ratio1; eq_ratio2]));
+        for b=-9:9
+            try
+                speed(bi+b)=NaN;
+            end
+        end
+        speed(bi2)=NaN;
+        speed=medfilt1(speed,15);
+        SpeedMatrix(CC,:)=speed;
+        
+        
+        %still episodes:
+        pauses=zeros(1,length(speed));
+        cc=1;
+        for i=31:30:length(speed)-30
+            ms=nanmean(speed(i-30:i+30));
+            if ms<p_cutoff
+                pauses(i:i+30)=1;
+                cc=cc+1;
+            end
+        end
+        Pon=find(diff(pauses)>0)/30;
+        Poff=find(diff(pauses)<0)/30;
+        if ~isempty(Pon)
+            if Pon(1)>Poff(1)
+                Pon=[2 Pon];
+            end
+        end
+        PauseMatrix(CC,:)=pauses;
+        
+    end
+    
+    %---reversals:---
+    if ~isempty(ImagingData{F}.RevFrames30hz)
+        
+        RevON=ImagingData{F}.RevFrames30hz(1:2:end);
+        RevEND=ImagingData{F}.RevFrames30hz(2:2:end);
+        Revs=zeros(length(speed));
+        for i=1:length(RevEND)
+            Revs(RevON(i)+5:RevEND(i)-5,1)=1;
+        end
+        Revs=Revs(1:length(speed));
+        % set still episodes to zero:
+        Revs(pauses==1)=0;
+        RevMatrix(CC,:)=Revs;
+    end
+    
+%     presActivity(CC)=nanmean(pauses(8280-(30*180):8280));
+%     postsActivity(CC)=nanmean(pauses(8600:10400));
+%     
+%     %activity 2 minutes prior to stim onset:
+%     AL(F)=nanmean(pauses(8280-(30*120):8280));
+    
+    
+    %select for response type by state prior to CO2 onset:
+            %--active--
+%             if nanmean(pauses(8280-(30*120):8280))>0.5
+%                 
+%                 type='Active';
+%                 set(gcf,'name',type)
+%                 continue
+%             end
+
+%       %%--inactive--
+%         if nanmean(pauses(8280-(30*180):8280))<0.6
+%             type='inactive';
+%             set(gcf,'name',type)
+%             continue
+%         end
+    
+% %      % --reversing--
+%         if nanmean(Revs(8280-(30*1):8280))<0.80
+%             type='reversing';
+%             set(gcf,'name',type)
+%             continue
+%         end
+  
+
+%------------plot----------
+plots=1;
+tv=(1:length( eq_ratio2))/30;
+tv2=tv+tv(end);
+
+if plots==1
+    figure(f1);
+    
+    subtightplot(length(ImagingData),1,CC,0.02)
+    cla
+    hold on
+    
+    %CO2
+    
+    p=patch([ 4.5*60 tv2(end)  tv2(end) 4.5*60 ], [-0.1 -0.1 3 3], [1 1 1]);
+    set(p,'FaceColor',[0.8 0.9 0.8],'EdgeColor',[0.8 0.9 0.8])
+    set(p,'FaceColor',[0.8 0.9 0.8],'EdgeColor',[0.8 0.9 0.8])
+    
+    %reversals:
+    if ~isempty(ImagingData{F}.RevFrames30hz)
+        RevON=RevON/30;
+        RevEND=RevEND/30;
+        for i=1:length(RevON)-1
+            p=patch([ RevON(i) RevEND(i)  RevEND(i) RevON(i) ], [-0.1 -0.1 2.0 2.0], [1 1 1]);
+            set(p,'FaceColor',[1 0.7 0.7],'EdgeColor',[1 0.8 0.8])
+        end
+    end
+    %pauses:
+    if ~isempty (ImagingData{F}.XY_1)
+        for i=1:length(Pon)-1
+            p=patch([ Pon(i) Poff(i)  Poff(i) Pon(i) ], [-0.1 -0.1 2 2], [1 1 1]);
+            set(p,'FaceColor',[0.7 0.7 0.9],'EdgeColor',[0.8 0.8 1])
+        end
+        
+        %plot speed
+        plot([tv tv2], speed*1, 'color' ,[0.2 0.2 1]);
+    end
+    
+    % plot ratios:
+    plot(tv, eq_ratio1,'k','linewidth',1.5);
+    plot(tv2,eq_ratio2,'k','linewidth',1.5);
+%     scatter(tv2(ix2),eq_ratio2(ix2));
+    
+    plot ([4.57*60 4.57*60], [0 max( eq_ratio2)/2],'g')
+    set(gca,'Xgrid','on');
+    set(gca,'XTick',1:15:tv2(end))
+    set(gca,'XTicklabel','')
+    ylim([-0.1 10])
+    
+    if CC==1
+        %ylabel('dR/R0')
+        yl=ylabel('R');
+        lp=get(gca,'position');
+        text(470,12,'speed','rotation',0,'color' ,[0.4 0.4 1])
+        text(470,8,'reversals','rotation',0,'color' ,[1 0.6 0.6])
+        
+        title(dirname(cd), 'fontsize',14)
+        set(gca,'XTicklabel',0:15:tv2(end))
+        
+    elseif  CC==length(ImagingData)
+        set(gca,'XTicklabel',0:15:tv2(end))
+        ylabel('R')
+        xlabel('sec')
+        lp=get(gca,'position');
+    end
+    yp=get(gca, 'ylim');
+    text(5,yp(2), ImagingData{F}.TrialLabel(2:3),'color', 'b')
+    
+    end
+    CC=CC+1;
+    
+    
+end
+%
+% % figure
+% % notBoxPlot([P1 ;P2]');
+% % ylim([1 10]);
+% % set(gcf,'name',type)
+% errorplot([tv tv2],RMatrix(1:CC-1,:),0,1)
+% ylim([0.2 9]);
+% % set(gcf,'name',type)
+% xlabel('sec')
+% ylabel ('median R')
+% title(dirname(cd))
+% 
+% 
+% %saveas(gcf,[dirname(cd) '_multiplot'])
+% [v idx]=sort(AL);
+% disp('done')

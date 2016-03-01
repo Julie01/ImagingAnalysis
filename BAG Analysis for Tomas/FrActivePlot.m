@@ -1,0 +1,17 @@
+% plots fraction of active worms from imaging:
+
+figure
+nn=NaN;
+for i=1:length(PauseMatrix)
+    nn(i)=numel(find(isnan(PauseMatrix(:,i))));
+end
+pp=nansumJ(PauseMatrix,1)./(size(PauseMatrix,1)-nn);
+pp=1-pp;
+pp=medfilt1(pp);
+plot([tv tv2], pp(1:end), 'linewidth',2)
+hold on
+plot ([4.63*60 4.63*60], [0 1],'g')
+ylabel('fraction animals active')
+xlabel( 'sec')
+ylim([0 1])
+title(dirname(cd))
